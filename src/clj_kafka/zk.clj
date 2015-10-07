@@ -11,11 +11,14 @@
   (with-resource [z (zk/connect (get m "zookeeper.connect"))]
     zk/close
     (if-let [broker-ids (zk/children z "/brokers/ids")]
-      (doall (map (comp #(read-str % :key-fn keyword)
-                        #(String. ^bytes %)
-                        :data
-                        #(zk/data z (str "/brokers/ids/" %)))
-                  broker-ids))
+      (->> (map (juxt identity
+                      (comp #(read-str % :key-fn keyword)
+                            #(String. ^bytes %)
+                            :data
+                            #(zk/data z (str "/brokers/ids/" %))))
+                broker-ids)
+           (map (fn [[broker-id broker-data]] (assoc broker-data :id broker-id)))
+           doall)
       '())))
 
 (defn broker-list
